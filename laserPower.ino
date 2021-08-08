@@ -5,6 +5,7 @@
 const byte RXLED = 17;  // The RX LED has a defined Arduino pin
 const byte analogPin = 5;   // laser connected to analog pin 3
 const byte keypadInterruptPin = 7;
+const byte fireButtonPin = 4;
 
 volatile bool interruptOccurred = false;
 
@@ -13,7 +14,9 @@ char keypadBuffer[keypadBufferLength];
 int keypadBufferPos = 0;
 const char PIN[] = "1234";
 
-bool powerOn = false;
+volatile bool powerOn = false;
+volatile bool fireState = false;
+volatile bool fireStateChanged = false;
 int powerLevel = 0;
 bool pinEntered = false;
 
@@ -28,6 +31,7 @@ void KeypadEvent()
 void setup() {
   pinMode(RXLED, OUTPUT);  // sets the pin as output
   pinMode(analogPin, OUTPUT);
+  pinMode(fireButtonPin, INPUT_PULLUP);
   pinMode(keypadInterruptPin, INPUT); // Qwiic Keypad holds INT pin HIGH @ 3.3V, then LOW when fired.
   // Note, this means we do not want INPUT_PULLUP.
   
@@ -102,6 +106,16 @@ bool checkPIN(char digit)
 
 void loop()
 {
+  if (pinEntered) {
+    bool newState = digitalRead(fireButtonPin) == LOW; // active low
+
+    if (newState != fireState) {
+      fireStateChanged = true;
+      fireState = newState;
+      setLaserPower(newState, powerLevel);
+    }
+  }
+
   char button = char(keypad.getButton());
 
   if (interruptOccurred || (button > 0))
